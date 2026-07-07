@@ -1,0 +1,6 @@
+{
+  "name": "Hanny Tresse",
+  "description": "Coiffure afro & perruques médicalisées à Perpignan - Expertise et bienveillance",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

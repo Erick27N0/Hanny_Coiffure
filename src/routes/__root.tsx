@@ -1,0 +1,96 @@
+import { useEffect } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  Outlet,
+  Link,
+  createRootRouteWithContext,
+  useRouter,
+  useLocation,
+} from "@tanstack/react-router";
+
+import { SiteHeader } from "@/components/site-header";
+import { SiteFooter } from "@/components/site-footer";
+import { Toaster } from "sonner";
+
+function NotFoundComponent() {
+  return (
+    <div className="flex min-h-[70vh] items-center justify-center bg-background px-4">
+      <div className="max-w-md text-center">
+        <h1 className="font-sans font-bold text-7xl text-primary">404</h1>
+        <h2 className="mt-4 font-sans font-bold text-xl text-primary">Page introuvable</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          La page que vous cherchez n'existe pas ou a été déplacée.
+        </p>
+        <div className="mt-6">
+          <Link
+            to="/"
+            className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            Retour à l'accueil
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
+  console.error(error);
+  const router = useRouter();
+
+  return (
+    <div className="flex min-h-[70vh] items-center justify-center bg-background px-4">
+      <div className="max-w-md text-center">
+        <h1 className="font-sans font-bold text-xl text-primary">Une erreur est survenue</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Quelque chose s'est mal passé. Vous pouvez réessayer ou revenir à l'accueil.
+        </p>
+        <div className="mt-6 flex flex-wrap justify-center gap-2">
+          <button
+            onClick={() => {
+              router.invalidate();
+              reset();
+            }}
+            className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            Réessayer
+          </button>
+          <a
+            href="/"
+            className="inline-flex items-center justify-center rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+          >
+            Accueil
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+  component: RootComponent,
+  notFoundComponent: NotFoundComponent,
+  errorComponent: ErrorComponent,
+});
+
+function RootComponent() {
+  const { queryClient } = Route.useRouteContext();
+  const location = useLocation();
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, [location.pathname]);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <div className="flex min-h-screen flex-col">
+        <SiteHeader />
+        <main className="flex-1">
+          <Outlet />
+        </main>
+        <SiteFooter />
+      </div>
+      <Toaster richColors position="top-right" />
+    </QueryClientProvider>
+  );
+}
