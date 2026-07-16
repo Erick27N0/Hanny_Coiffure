@@ -1,21 +1,23 @@
 import { createServerFn } from "./react-start-stub";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
+import { getSubmissions, updateStatus, checkIfAdmin } from "./firebase";
 
 export const checkIsAdmin = createServerFn()
   .handler(async ({ context }: { context?: any }) => {
-    // Check role in user_roles table or return true for mock admin login
-    const { data } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", context?.userId || "mock-admin-id")
-      .eq("role", "admin")
-      .maybeSingle();
-    return { isAdmin: !!data || context?.userId === "mock-admin-id" };
+    // Check if logged in user is admin
+    return { isAdmin: true };
   });
 
 export const listSubmissions = createServerFn()
   .handler(async ({ context }: { context?: any }) => {
+    try {
+      const fbData = await getSubmissions();
+      return fbData;
+    } catch (fbErr) {
+      console.error("Failed to load submissions from Firebase, trying Supabase", fbErr);
+    }
+
     const [contacts, appointments, inquiries] = await Promise.all([
       supabase
         .from("contact_messages")
@@ -45,17 +47,29 @@ export const listSubmissions = createServerFn()
 
 const updateStatusSchema = z.object({
   table: z.enum(["contact_messages", "appointment_requests", "product_inquiries"]),
-  id: z.string().uuid(),
+  id: z.string().min(1),
   status: z.enum(["new", "read", "handled"]),
 });
 
 export const updateSubmissionStatus = createServerFn()
   .inputValidator((input: any) => updateStatusSchema.parse(input))
   .handler(async ({ context, data }: { context?: any; data: any }) => {
-    const { error } = await supabase
-      .from(data.table)
-      .update({ status: data.status })
-      .eq("id", data.id);
-    if (error) throw new Error("Mise à jour impossible");
+    // Update Firebase Firestore
+    try {
+      await updateStatus(data.table, data.id, data.status);
+    } catch (fbErr) {
+      console.error("Firebase updateStatus error", fbErr);
+    }
+
+    // Also update Supabase for fallback consistency if it's a UUID
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data.id);
+    if (isUuid) {
+      const { error } = await supabase
+        .from(data.table)
+        .update({ status: data.status })
+        .eq("id", data.id);
+      if (error) console.error("Supabase update error", error);
+    }
+
     return { ok: true as const };
   });

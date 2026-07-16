@@ -1,6 +1,7 @@
 import { createServerFn } from "./react-start-stub";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
+import { addContactMessage, addAppointmentRequest, addProductInquiry } from "./firebase";
 
 const contactSchema = z.object({
   fullName: z.string().trim().min(2).max(100),
@@ -13,6 +14,19 @@ const contactSchema = z.object({
 export const submitContact = createServerFn()
   .inputValidator((input: any) => contactSchema.parse(input))
   .handler(async ({ data }: { data: any }) => {
+    // Write to Firebase Firestore first
+    try {
+      await addContactMessage({
+        fullName: data.fullName,
+        email: data.email,
+        phone: data.phone || "",
+        subject: data.subject || "",
+        message: data.message,
+      });
+    } catch (fbErr) {
+      console.error("Firebase submitContact error", fbErr);
+    }
+
     const { error } = await supabase.from("contact_messages").insert({
       full_name: data.fullName,
       email: data.email,
@@ -39,6 +53,20 @@ const appointmentSchema = z.object({
 export const submitAppointment = createServerFn()
   .inputValidator((input: any) => appointmentSchema.parse(input))
   .handler(async ({ data }: { data: any }) => {
+    // Write to Firebase Firestore first
+    try {
+      await addAppointmentRequest({
+        fullName: data.fullName,
+        email: data.email,
+        phone: data.phone,
+        situation: data.situation,
+        oncologyCenter: data.oncologyCenter || "",
+        preferredSlot: data.preferredSlot || "",
+      } as any);
+    } catch (fbErr) {
+      console.error("Firebase submitAppointment error", fbErr);
+    }
+
     const { error } = await supabase.from("appointment_requests").insert({
       full_name: data.fullName,
       email: data.email,
@@ -66,6 +94,20 @@ const productInquirySchema = z.object({
 export const submitProductInquiry = createServerFn()
   .inputValidator((input: any) => productInquirySchema.parse(input))
   .handler(async ({ data }: { data: any }) => {
+    // Write to Firebase Firestore first
+    try {
+      await addProductInquiry({
+        productSlug: data.productSlug,
+        productName: data.productName,
+        fullName: data.fullName,
+        email: data.email,
+        phone: data.phone,
+        message: data.message || "",
+      });
+    } catch (fbErr) {
+      console.error("Firebase submitProductInquiry error", fbErr);
+    }
+
     const { error } = await supabase.from("product_inquiries").insert({
       product_slug: data.productSlug,
       product_name: data.productName,

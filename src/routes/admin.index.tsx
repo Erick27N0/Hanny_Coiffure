@@ -3,7 +3,8 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { auth, checkIfAdmin, signOut } from "@/lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -18,7 +19,6 @@ import { toast } from "sonner";
 import {
   listSubmissions,
   updateSubmissionStatus,
-  checkIsAdmin,
 } from "@/lib/admin.functions";
 
 export const Route = createFileRoute("/admin/")({
@@ -57,23 +57,20 @@ function AdminPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [ready, setReady] = useState(false);
-  const checkAdmin = useServerFn(checkIsAdmin);
   const fetchList = useServerFn(listSubmissions);
   const updateStatus = useServerFn(updateSubmissionStatus);
 
   useEffect(() => {
-    let mounted = true;
-    supabase.auth.getSession().then(async ({ data }: any) => {
-      if (!mounted) return;
-      if (!data?.session) {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
         navigate({ to: "/admin/login" });
         return;
       }
       try {
-        const res = await checkAdmin();
-        if (!res.isAdmin) {
+        const isAdmin = await checkIfAdmin(user.uid, user.email);
+        if (!isAdmin) {
           toast.error("Accès refusé", { description: "Ce compte n'a pas les droits administrateur." });
-          await supabase.auth.signOut();
+          await signOut();
           navigate({ to: "/admin/login" });
           return;
         }
@@ -82,10 +79,8 @@ function AdminPage() {
         navigate({ to: "/admin/login" });
       }
     });
-    return () => {
-      mounted = false;
-    };
-  }, [navigate, checkAdmin]);
+    return () => unsubscribe();
+  }, [navigate]);
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-submissions"],
@@ -108,7 +103,7 @@ function AdminPage() {
   };
 
   const onLogout = async () => {
-    await supabase.auth.signOut();
+    await signOut();
     navigate({ to: "/admin/login" });
   };
 
