@@ -14,7 +14,8 @@ import {
   Check, 
   HelpCircle,
   TrendingUp,
-  FileText
+  FileText,
+  Calendar
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -71,6 +72,45 @@ const formSchema = z.object({
   preferredSlot: z.string().trim().max(200).optional(),
 });
 
+const getNextWorkDays = () => {
+  const days = [];
+  const today = new Date();
+  let current = new Date(today);
+  
+  // Start from tomorrow or today if it's early
+  current.setDate(current.getDate() + 1);
+
+  const dayNames = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
+  const fullDayNames = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
+  const monthNames = [
+    "janvier", "février", "mars", "avril", "mai", "juin", 
+    "juillet", "août", "septembre", "octobre", "novembre", "décembre"
+  ];
+
+  while (days.length < 10) {
+    const dayOfWeek = current.getDay();
+    if (dayOfWeek !== 0) { // Skip Sunday (Closed)
+      days.push({
+        dateStr: current.toISOString().split('T')[0],
+        dayNum: current.getDate(),
+        dayName: dayNames[dayOfWeek],
+        fullDateLabel: `${fullDayNames[dayOfWeek]} ${current.getDate()} ${monthNames[current.getMonth()]}`,
+        rawDate: new Date(current)
+      });
+    }
+    current.setDate(current.getDate() + 1);
+  }
+  return days;
+};
+
+const TIME_SLOTS = [
+  { time: "09:30", label: "09h30 - Matin" },
+  { time: "11:00", label: "11h00 - Matin" },
+  { time: "14:00", label: "14h00 - Après-midi" },
+  { time: "15:30", label: "15h30 - Après-midi" },
+  { time: "17:00", label: "17h00 - Fin de journée" }
+];
+
 type FormValues = z.infer<typeof formSchema>;
 
 type WigCategory = "classe1" | "classe2" | "accessoires" | "hors_classe";
@@ -82,10 +122,25 @@ function WigsPage() {
     register,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
+    defaultValues: {
+      preferredSlot: "",
+    }
   });
+
+  const workDays = React.useMemo(() => getNextWorkDays(), []);
+  const [selectedDay, setSelectedDay] = React.useState<any>(workDays[0]);
+  const [selectedTimeSlot, setSelectedTimeSlot] = React.useState<string>("14:00");
+
+  // Sync selected day and time slot to form
+  React.useEffect(() => {
+    if (selectedDay && selectedTimeSlot) {
+      setValue("preferredSlot", `${selectedDay.fullDateLabel} à ${selectedTimeSlot}`);
+    }
+  }, [selectedDay, selectedTimeSlot, setValue]);
 
   // Simulator State
   const [selectedCategory, setSelectedCategory] = React.useState<WigCategory>("classe1");
@@ -707,9 +762,82 @@ function WigsPage() {
               <Label htmlFor="oncologyCenter" className="text-primary font-semibold">Centre d'oncologie (optionnel)</Label>
               <Input id="oncologyCenter" {...register("oncologyCenter")} />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="preferredSlot" className="text-primary font-semibold">Créneau souhaité (optionnel)</Label>
-              <Input id="preferredSlot" placeholder="Ex : mardi après-midi" {...register("preferredSlot")} />
+            <div className="space-y-4 border border-border bg-slate-50/50 p-4 rounded-xl">
+              <Label className="text-primary font-bold flex items-center gap-1.5 text-sm">
+                <Calendar className="h-4 w-4 text-primary" /> Choix du Créneau d'essayage privé en ligne *
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Sélectionnez la date et l'heure souhaitées ci-dessous. Le salon sera entièrement privatisé pour votre confort.
+              </p>
+
+              {/* Day selection grid */}
+              <div className="space-y-2">
+                <span className="text-[11px] uppercase font-bold text-muted-foreground tracking-wider block">Étape 1 : Choisir le jour</span>
+                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none snap-x -mx-1 px-1">
+                  {workDays.map((wd: any) => {
+                    const isSelected = selectedDay?.dateStr === wd.dateStr;
+                    return (
+                      <button
+                        key={wd.dateStr}
+                        type="button"
+                        onClick={() => setSelectedDay(wd)}
+                        className={`flex-shrink-0 w-[68px] h-[72px] flex flex-col justify-center items-center rounded-lg border text-center transition-all snap-start ${
+                          isSelected 
+                            ? "bg-primary border-primary text-white shadow-sm font-bold scale-[1.02]" 
+                            : "bg-white border-border text-slate-700 hover:border-slate-400"
+                        }`}
+                      >
+                        <span className={`text-[10px] uppercase ${isSelected ? "text-white/80" : "text-muted-foreground font-semibold"}`}>{wd.dayName}</span>
+                        <span className="text-xl font-bold font-sans mt-0.5">{wd.dayNum}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Time slot grid */}
+              <div className="space-y-2">
+                <span className="text-[11px] uppercase font-bold text-muted-foreground tracking-wider block">Étape 2 : Choisir l'heure de début d'essai (1 heure d'accompagnement)</span>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+                  {TIME_SLOTS.map((slot) => {
+                    const isSelected = selectedTimeSlot === slot.time;
+                    return (
+                      <button
+                        key={slot.time}
+                        type="button"
+                        onClick={() => setSelectedTimeSlot(slot.time)}
+                        className={`py-2 text-xs font-bold rounded-lg border text-center transition-all ${
+                          isSelected 
+                            ? "bg-secondary text-secondary-foreground border-secondary shadow-sm" 
+                            : "bg-white border-border text-slate-700 hover:border-slate-400 hover:bg-slate-50"
+                        }`}
+                      >
+                        {slot.time}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Hidden input representing choice */}
+              <div className="pt-2">
+                <Input 
+                  id="preferredSlot" 
+                  type="hidden" 
+                  {...register("preferredSlot")} 
+                />
+                {selectedDay && selectedTimeSlot && (
+                  <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-100 flex items-start gap-2 text-emerald-800 text-xs">
+                    <Check className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5 animate-bounce" />
+                    <div>
+                      <p className="font-bold">Créneau d'essayage disponible présélectionné :</p>
+                      <p className="mt-0.5 text-emerald-700">
+                        {selectedDay.fullDateLabel} à <strong>{selectedTimeSlot}</strong> — EXEMPLE — à vérifier
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="situation" className="text-primary font-semibold">Votre situation *</Label>
