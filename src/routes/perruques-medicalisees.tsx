@@ -30,6 +30,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { StepsList } from "@/components/steps-list";
+import { BeforeAfterGallery } from "@/components/before-after-gallery";
 import { wigFaq } from "@/data/faq";
 import { submitAppointment } from "@/lib/submissions.functions";
 
@@ -686,6 +687,9 @@ function WigsPage() {
           </div>
         </div>
       </section>
+
+      {/* Galerie Avant / Après */}
+      <BeforeAfterGallery />
 
       {/* Steps */}
       <section className="bg-slate-50 py-16 md:py-20 border-b border-border">

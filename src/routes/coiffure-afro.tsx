@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CTASection } from "@/components/cta-section";
+import { BeforeAfterGallery } from "@/components/before-after-gallery";
 import { services, formatDuration } from "@/data/services";
 
 export const Route = createFileRoute("/coiffure-afro")({
@@ -66,6 +67,8 @@ function AfroPage() {
           </Button>
         </div>
       </section>
+
+      <BeforeAfterGallery />
 
       <CTASection
         title="Une envie particulière ?"
